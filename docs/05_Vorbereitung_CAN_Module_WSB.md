@@ -1,7 +1,7 @@
 # Schritt 5 – Vorbereitung: CAN-Sensormodule und WSB-Leistungsteil
 
 Die Module und das WSB-Leistungsteil werden ein **eigenes Projekt**. Hier werden die Schnittstellen
-festgelegt, damit Messplatine v3 (Schritt 4), Firmware und SimpleDyno schon passend gebaut werden.
+festgelegt, damit Messplatine v3 (Schritt 4), Firmware und PyST schon passend gebaut werden.
 
 ## Busaufteilung
 
@@ -34,7 +34,7 @@ Vorgesehene Module:
 | 3 | Kraftmessdose | Kraft [N], Status |
 | 4 | Fahrer-Anzeige | Tasten (Start/Abbruch), Anzeige-Befehle |
 
-Ein **DBC-File** (`pst_can2.dbc`) wird die verbindliche Beschreibung; SimpleDyno liest es und legt die
+Ein **DBC-File** (`pst_can2.dbc`) wird die verbindliche Beschreibung; PyST liest es und legt die
 Kanäle automatisch an.
 
 ## Die Bremse: Schenck W130
@@ -112,4 +112,4 @@ definierte Bremsung? Hängt von Bremse und Aufbau ab → im WSB-Projekt festlege
 |---|---|
 | Messplatine v3 (Schritt 4) | CAN 1 + CAN 2, Not-Aus-Eingang, WSB-Schnittstelle, 12 V |
 | Protokoll v2 (Schritt 3) | Kanäle aus CAN-Quellen, `SET_MODE`/`SETPOINT`, `HEARTBEAT` |
-| SimpleDyno | Kanäle generisch (fertig), später Reiter „Bremse“ (Modus, Sollwert, Istwerte), DBC-Import |
+| PyST | Kanäle generisch (fertig), später Reiter „Bremse“ (Modus, Sollwert, Istwerte), DBC-Import |

@@ -1,5 +1,5 @@
 """
-SimpleDyno – Oberflaeche (PySide6 + pyqtgraph). Mac, Linux (Raspberry Pi), Windows.
+PyST – Oberflaeche (PySide6 + pyqtgraph). Mac, Linux (Raspberry Pi), Windows.
 
 Reiter:  Messen | Fahrzeuge & Setups | Auswertung | Einstellungen
 """
@@ -15,7 +15,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from . import physics, report, storage
 from .channels import lambda_from_afr, run_channels
-from .db import SETUP_SUMMARY_KEYS, VEHICLE_FIELDS, Database, field_label
+from .db import SETUP_SUMMARY_KEYS, VEHICLE_FIELDS, Database, base_dir, field_label
 from .dialogs import FieldForm, SetupForm
 from .link import DEFAULT_SIM_PORT, SIM_PORT, DynoLink, guess_port, list_serial_ports
 from .plots import DynoPlot, run_color
@@ -23,7 +23,7 @@ from .runner import ABORTED, DONE, IDLE, RUN, WAIT, RunController
 from .viewer import LogViewer
 from .widgets import Gauge
 
-SETTINGS_FILE = os.path.join(os.path.expanduser("~"), "SimpleDyno", "einstellungen.json")
+SETTINGS_FILE = os.path.join(base_dir(), "einstellungen.json")
 LIVE_KEY = "live"
 FILTER_S_DEFAULT = (1.75, 0.75)       # = LabVIEW 35/15 bei 20 Hz
 
@@ -395,7 +395,7 @@ class DatabasePage(QtWidgets.QWidget):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, db: Optional[Database] = None):
         super().__init__()
-        self.setWindowTitle("SimpleDyno – WildBugChilGru")
+        self.setWindowTitle("PyST – WildBugChilGru")
         self.resize(1500, 920)
         self.settings = load_settings()
         self.db = db or Database()
@@ -714,7 +714,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.link = None
         os.environ.pop("SIMPLEDYNO_SCALED", None)
         os.environ.pop("QT_SCALE_FACTOR", None)
-        os.execv(sys.executable, [sys.executable, "-m", "simpledyno"] + [a for a in sys.argv[1:]])
+        os.execv(sys.executable, [sys.executable, "-m", "pyst"] + [a for a in sys.argv[1:]])
 
     def _toggle_gauge(self, key: str, on: bool):
         self.gauges[key][1].setVisible(on)
@@ -1198,7 +1198,7 @@ class MainWindow(QtWidgets.QMainWindow):
         vname = self.vehicle_combo.currentText() if vid else ""
         folder = storage.save_run(self.ctrl, vehicle=vname, firmware=self.firmware, base_dir=self.db.runs_dir())
         r = self.ctrl.result
-        rid = self.db.add_run(folder, "lauf.json", "SimpleDyno", os.path.basename(folder),
+        rid = self.db.add_run(folder, "lauf.json", "PyST", os.path.basename(folder),
                               QtCore.QDateTime.currentDateTime().toString(QtCore.Qt.ISODate), r,
                               params=asdict(self.ctrl.params), rate=self._current_rate(), vehicle_id=vid,
                               setup_id=sid, notiz=self.run_note.text(), farbe="", sichtbar=True)
@@ -1227,7 +1227,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------ Datenverwaltung
     def on_import(self):
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(
-            self, "Läufe importieren (LabVIEW-XML oder SimpleDyno lauf.json)", os.path.expanduser("~"),
+            self, "Läufe importieren (LabVIEW-XML oder PyST lauf.json)", os.path.expanduser("~"),
             "Läufe (*.xml *.json);;Alle Dateien (*)")
         if not files:
             return
@@ -1257,7 +1257,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         ans = QtWidgets.QMessageBox.question(
             self, "Löschen", f"{len(items)} Lauf/Läufe aus der Datenbank löschen?\n"
-                             "Messdateien im SimpleDyno-Datenordner werden mitgelöscht.")
+                             "Messdateien im PyST-Datenordner werden mitgelöscht.")
         if ans != QtWidgets.QMessageBox.Yes:
             return
         for it in items:
@@ -1414,7 +1414,7 @@ def _apply_ui_scale(app: QtWidgets.QApplication) -> bool:
         return False
     os.environ["QT_SCALE_FACTOR"] = f"{factor:.2f}"
     os.environ["SIMPLEDYNO_SCALED"] = "1"
-    os.execv(sys.executable, [sys.executable, "-m", "simpledyno"] + sys.argv[1:])
+    os.execv(sys.executable, [sys.executable, "-m", "pyst"] + sys.argv[1:])
     return True
 
 
@@ -1431,7 +1431,7 @@ def _fit_window(win: QtWidgets.QMainWindow, app: QtWidgets.QApplication):
 def main():
     app = QtWidgets.QApplication(sys.argv)
     _apply_ui_scale(app)
-    app.setApplicationName("SimpleDyno")
+    app.setApplicationName("PyST")
     win = MainWindow()
     files = [a for a in sys.argv[1:] if a.lower().endswith((".xml", ".json"))]
     if "--replay" in sys.argv and files:

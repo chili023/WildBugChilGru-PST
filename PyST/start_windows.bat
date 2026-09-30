@@ -1,5 +1,5 @@
 @echo off
-rem SimpleDyno fuer Windows: beim ersten Start wird die Python-Umgebung eingerichtet.
+rem PyST fuer Windows: beim ersten Start wird die Python-Umgebung eingerichtet.
 cd /d "%~dp0"
 if exist .venv\Scripts\python.exe goto run
 echo Erster Start: Python-Umgebung wird eingerichtet (einmalig, 1-2 Minuten) ...
@@ -19,4 +19,4 @@ if errorlevel 1 (
   exit /b 1
 )
 :run
-.venv\Scripts\python -m simpledyno %*
+.venv\Scripts\python -m pyst %*

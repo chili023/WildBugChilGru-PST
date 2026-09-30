@@ -1,6 +1,6 @@
 """
 Simulierte Messelektronik: verhaelt sich wie die PST-STM32-Firmware 1.0 (Arduino-Protokoll)
-und simuliert Motor + Rolle, damit SimpleDyno ohne Pruefstand getestet werden kann.
+und simuliert Motor + Rolle, damit PyST ohne Pruefstand getestet werden kann.
 
 Ablauf nach 'm': Motor haelt 3000 1/min, nach 3 s Vollgas bis 11500 1/min, dann Gas weg
 und die Rolle rollt aus. Motor ~ 32 PS bei 10000 1/min (wie die Referenzlaeufe vom 26.05.26).
@@ -85,7 +85,7 @@ class SimEngine:
         return max(0.0, f_ign), max(0.0, f_roll)
 
 class ReplaySource:
-    """Spielt die Rohdaten eines gespeicherten Laufs (LabVIEW-XML oder SimpleDyno) Telegramm fuer
+    """Spielt die Rohdaten eines gespeicherten Laufs (LabVIEW-XML oder PyST) Telegramm fuer
     Telegramm so ab, wie die Firmware sie gesendet haette."""
 
     def __init__(self, path: str):

@@ -2,7 +2,7 @@
 Lesen und Schreiben der LabVIEW-Lauf-Dateien (Cluster "Datenspeicher", LVData-XML).
 
 Lesen:   LabVIEW 3.x (Arduino) und STM-LabVIEW 0.2.0, auch Konfig.xml.
-Schreiben: Layout von LabVIEW 3.2.1, damit SimpleDyno-Laeufe in LabVIEW-Recalc
+Schreiben: Layout von LabVIEW 3.2.1, damit PyST-Laeufe in LabVIEW-Recalc
            geoeffnet werden koennen (Datei-Kodierung Latin-1 wie LabVIEW).
 """
 import datetime as _dt

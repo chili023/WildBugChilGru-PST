@@ -20,7 +20,7 @@ Aus den Blockdiagrammen rekonstruiert (WildBugChilGru.vi, Messschleife):
           von hinten die letzte Stelle mit a < 0 und n < n_min suchen, danach beginnt die Kurve
           = Beginn des Beschleunigens nach dem Halten
 
-Erweiterung SimpleDyno: optional n_stop – der Lauf endet auch, sobald n >= n_stop.
+Erweiterung PyST: optional n_stop – der Lauf endet auch, sobald n >= n_stop.
 """
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -239,7 +239,7 @@ def evaluate(n_roll_raw, dt_raw, p: DynoParams, n_meas_raw=None, afr_raw=None, e
         cond = (a <= 0) & (n_e > p.n_min) & (idx >= dq) & (idx <= N - 1 - dq)
     e = int(np.argmax(cond)) if cond.any() else -1
     reason = "Gas weg (Verzoegerung)" if e >= 0 else ""
-    # ... oder frueher bei n_stop (SimpleDyno)
+    # ... oder frueher bei n_stop (PyST)
     if p.n_stop and p.n_stop > 0:
         hit = np.nonzero((n_e >= p.n_stop) & (idx >= dq))[0]
         if len(hit) and (e < 0 or hit[0] < e):

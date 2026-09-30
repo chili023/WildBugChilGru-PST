@@ -103,7 +103,16 @@ def field_label(key: str) -> str:
 
 
 def base_dir() -> str:
-    return os.path.join(os.path.expanduser("~"), "SimpleDyno")
+    """Datenordner ~/PyST. Gibt es noch den Ordner der Vorversion (~/SimpleDyno) und kein ~/PyST,
+    wird der alte weiter benutzt – Datenbank und Pfade der Laeufe bleiben gueltig."""
+    home = os.path.expanduser("~")
+    new, old = os.path.join(home, "PyST"), os.path.join(home, "SimpleDyno")
+    return old if os.path.isdir(old) and not os.path.isdir(new) else new
+
+
+def db_file(folder: str) -> str:
+    old = os.path.join(folder, "simpledyno.db")
+    return old if os.path.exists(old) else os.path.join(folder, "pyst.db")
 
 
 @dataclass
@@ -151,7 +160,7 @@ CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 
 class Database:
     def __init__(self, path: str = ""):
-        self.path = path or os.path.join(base_dir(), "simpledyno.db")
+        self.path = path or db_file(base_dir())
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         self.con = sqlite3.connect(self.path)
         self.con.row_factory = sqlite3.Row
@@ -292,7 +301,7 @@ class Database:
 
     # ------------------------------------------------------------ Import
     def import_file(self, path: str, vehicle_id=None, setup_id=None) -> int:
-        """LabVIEW-XML oder SimpleDyno-Ordner in die Datenbank uebernehmen (Datei wird kopiert)."""
+        """LabVIEW-XML oder PyST-Ordner in die Datenbank uebernehmen (Datei wird kopiert)."""
         from . import physics, storage
         run = storage.load_any(path)
         res = storage.recompute(run)

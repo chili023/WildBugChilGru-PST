@@ -1,4 +1,4 @@
-# Testplan: alte vs. neue Firmware vs. SimpleDyno
+# Testplan: alte vs. neue Firmware vs. PyST
 
 Ziel: Mit demselben Fahrzeug, am selben Tag, drei Konfigurationen messen und vergleichen.
 
@@ -7,7 +7,7 @@ Ziel: Mit demselben Fahrzeug, am selben Tag, drei Konfigurationen messen und ver
 | **A** | alte Firmware (die jetzt auf dem Nucleo ist) | alte LabVIEW (STM 0.2.0) | Windows |
 | **B1** | neue PST-STM32 1.0 | LabVIEW 3.2.1 von GitHub | Windows |
 | **B2** | neue PST-STM32 1.0 | alte LabVIEW (STM 0.2.0) | Windows |
-| **C** | neue PST-STM32 1.0 | SimpleDyno | Mac (oder Pi) |
+| **C** | neue PST-STM32 1.0 | PyST | Mac (oder Pi) |
 
 B2 ist optional, zeigt aber, ob die neue Firmware auch mit der alten LabVIEW sauber läuft
 (sie erkennt deren 8-Byte-Befehle automatisch).
@@ -27,7 +27,7 @@ st-flash --connect-under-reset read ~/pst_firmware_backup_alt.bin 0x08000000 0x8
 Zurückspielen später mit:
 `st-flash --connect-under-reset write ~/pst_firmware_backup_alt.bin 0x08000000`
 
-**SimpleDyno testen ohne Prüfstand:** `./start_mac.command --sim` → Verbinden → START.
+**PyST testen ohne Prüfstand:** `./start_mac.command --sim` → Verbinden → START.
 Ein simulierter Lauf dauert ca. 15 s.
 
 **Einstellungen, in allen Tests gleich** (aus euren Läufen vom 26.05.26):
@@ -39,16 +39,16 @@ Ein simulierter Lauf dauert ca. 15 s.
 | Rollenträgheit J | 13,5 kgm² |
 | Zündung | 1 Imp/U |
 | Übersetzung | **fest** 6,85 (bzw. vorher einmal messen und dann überall gleich eintragen) |
-| Gleitender Mittelwert / Differenzenquotient | **bei 20 Hz: 35 / 15** (alte Firmware, B2). **Bei 60 Hz: 105 / 45** (B1 LabVIEW 3.2.1, C SimpleDyno) – die Filter zählen Messpunkte, nicht Sekunden! Mit 35/15 bei 60 Hz wird die Kurve wellig und Pmax zu hoch (Simulator: 35,0 statt 32,4 PS). |
+| Gleitender Mittelwert / Differenzenquotient | **bei 20 Hz: 35 / 15** (alte Firmware, B2). **Bei 60 Hz: 105 / 45** (B1 LabVIEW 3.2.1, C PyST) – die Filter zählen Messpunkte, nicht Sekunden! Mit 35/15 bei 60 Hz wird die Kurve wellig und Pmax zu hoch (Simulator: 35,0 statt 32,4 PS). |
 | n vom Gas | **über der Haltedrehzahl**, z.B. Haltedrehzahl ~3000 → n vom Gas 5000. (In den Mai-Läufen wurde bei 5000–6500 gehalten, deshalb stand dort 8000.) |
 | Verlustmoment | 0 / 0 / 1 |
-| Gas weg | bei **8000 1/min** in allen Tests (SimpleDyno zeigt „GAS WEG!“, in LabVIEW auf den Drehzahlmesser achten) |
+| Gas weg | bei **8000 1/min** in allen Tests (PyST zeigt „GAS WEG!“, in LabVIEW auf den Drehzahlmesser achten) |
 
 > Mit Gas weg bei 8000 endet die Kurve **vor Pmax** (bei euch ~10000 1/min). Für den Vergleich
 > ist das egal, weil alle Läufe mit derselben Grenze nachgerechnet werden (`--n-stop 8000`).
 > Wer Pmax sehen will: n Stop auf 0 (aus) bzw. 11500 und wie gewohnt Gas wegnehmen.
 >
-> SimpleDyno steuert den Motor nicht. „n Stop“ beendet nur die Aufzeichnung und zeigt
+> PyST steuert den Motor nicht. „n Stop“ beendet nur die Aufzeichnung und zeigt
 > GAS WEG an. Gas wegnehmen muss immer der Fahrer.
 
 ---
@@ -58,8 +58,8 @@ Ein simulierter Lauf dauert ca. 15 s.
 1. Motor warmfahren, gleicher Gang, gleiche Reifentemperatur wie bei den anderen Tests.
 2. Klimadaten: automatisch (Sensor) – in allen Tests gleich lassen.
 3. Pro Lauf: Drehzahl ~3000 halten (unter n vom Gas!) → START → bei GO Vollgas → bei 8000 Gas weg.
-4. **Auto-Speichern an** (LabVIEW legt `JJMMTT_HHMMSS_PS_n.xml` ab, SimpleDyno einen Ordner
-   in `~/SimpleDyno/messungen/`).
+4. **Auto-Speichern an** (LabVIEW legt `JJMMTT_HHMMSS_PS_n.xml` ab, PyST einen Ordner
+   in `~/PyST/messungen/`).
 5. Notieren: Pmax, n(Pmax), COM-Fehlerrate, Auffälligkeiten (Aussetzer, springende Drehzahl).
 
 ### Test A – alt/alt
@@ -83,7 +83,7 @@ Dann Nucleo an den Windows-Rechner, LabVIEW starten, COM-Port wählen, messen.
 Achtung LabVIEW + neue Firmware: Nach dem Lauf den Motor kurz (5 s) abstellen oder Klima
 manuell eintragen – siehe Firmware-README („kein Reset beim Öffnen des Ports“).
 
-### Test C – SimpleDyno am Mac
+### Test C – PyST am Mac
 `./start_mac.command` → Port `/dev/cu.usbmodem…` → Verbinden → Einstellungen wie oben → START (F1).
 Nach dem Lauf wird automatisch gespeichert (Rohdaten, Kurve, PNG und eine LabVIEW-kompatible `lauf.xml`).
 
@@ -91,21 +91,21 @@ Nach dem Lauf wird automatisch gespeichert (Rohdaten, Kurve, PNG und eine LabVIE
 
 ## Auswertung
 
-Alle Dateien (LabVIEW-XML aus A/B und SimpleDyno-Ordner aus C) auf den Mac kopieren:
+Alle Dateien (LabVIEW-XML aus A/B und PyST-Ordner aus C) auf den Mac kopieren:
 
 **Tabelle, alle Läufe mit identischen Parametern nachgerechnet:**
 ```bash
-./.venv/bin/python -m simpledyno compare ~/Messungen/A/*.xml ~/Messungen/B1/*.xml ~/SimpleDyno/messungen/*/lauf.json --n-min 5000 --n-stop 8000
+./.venv/bin/python -m pyst compare ~/Messungen/A/*.xml ~/Messungen/B1/*.xml ~/PyST/messungen/*/lauf.json --n-min 5000 --n-stop 8000
 ```
 
-**Jeder Lauf mit seinen eigenen Parametern (prüft: rechnet SimpleDyno wie LabVIEW?):**
+**Jeder Lauf mit seinen eigenen Parametern (prüft: rechnet PyST wie LabVIEW?):**
 ```bash
-./.venv/bin/python -m simpledyno recalc ~/Messungen/A/*.xml
+./.venv/bin/python -m pyst recalc ~/Messungen/A/*.xml
 ```
 Die Spalte „Referenz(Name)“ zeigt, was LabVIEW selbst ausgerechnet hat. Bei den sechs Läufen vom
-26.05.26 stimmt SimpleDyno auf 0,1 PS und 1 1/min überein.
+26.05.26 stimmt PyST auf 0,1 PS und 1 1/min überein.
 
-**Grafisch:** In SimpleDyno „Läufe laden / vergleichen …“, mehrere Dateien wählen,
+**Grafisch:** In PyST „Läufe laden / vergleichen …“, mehrere Dateien wählen,
 Haken „mit aktuellen Parametern rechnen“ für einen fairen Vergleich.
 
 ### Was wir erwarten / worauf achten
@@ -114,11 +114,11 @@ Haken „mit aktuellen Parametern rechnen“ für einen fairen Vergleich.
 |---|---|
 | Test A: gemessene Motordrehzahl springt stark (z.B. 4695 ↔ 17000 1/min) | bekannter Mittelwertfehler der alten Firmware (in euren Mai-Läufen sichtbar) |
 | Test A vs. B: Pmax-Unterschied | Frequenzfehler der alten Firmware wirkt auf die Rollendrehzahl – Größe wollen wir messen |
-| B vs. C bei gleicher Firmware: Pmax gleich (± Streuung zwischen Läufen) | SimpleDyno rechnet wie LabVIEW |
+| B vs. C bei gleicher Firmware: Pmax gleich (± Streuung zwischen Läufen) | PyST rechnet wie LabVIEW |
 | Messfrequenz | A: 20–133 Hz (Einstellung STM-LabVIEW), B1/C: 60,00 Hz |
 | COM verloren / Fehlerrate | sollte bei neuer Firmware 0 sein |
 | Kurvenrauschen | neue Firmware sollte glatter sein (exakte Periodenmessung) |
-| Zündung ÷ (Rolle × i) | alte Firmware: Bänder bei ~1,0 / ~1,8 / ~2,7 statt 1,0. Auswertung aller 6 Mai-Läufe: **2. Zündimpuls pro Umdrehung bei ~142°** (Signal/Hardware, nicht Software). In SimpleDyno: Reiter Auswertung → Kanal „Übersetzung Zündung/Rolle“. |
+| Zündung ÷ (Rolle × i) | alte Firmware: Bänder bei ~1,0 / ~1,8 / ~2,7 statt 1,0. Auswertung aller 6 Mai-Läufe: **2. Zündimpuls pro Umdrehung bei ~142°** (Signal/Hardware, nicht Software). In PyST: Reiter Auswertung → Kanal „Übersetzung Zündung/Rolle“. |
 
 ### Zündsignal prüfen (Test B)
 

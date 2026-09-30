@@ -53,7 +53,7 @@ def export_pdf(path: str, plot_image: QtGui.QImage, title: str, rows: List[Dict[
     p.drawText(QtCore.QRectF(0, 0, W, head_h), QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter, title)
     font(9)
     p.drawText(QtCore.QRectF(0, 0, W, head_h), QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter,
-               "SimpleDyno · " + _dt.datetime.now().strftime("%d.%m.%Y %H:%M"))
+               "PyST · " + _dt.datetime.now().strftime("%d.%m.%Y %H:%M"))
     y = head_h + 2 * mm
 
     # Diagramm

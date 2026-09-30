@@ -1,13 +1,13 @@
 """
-SimpleDyno – Kommandozeile.
+PyST – Kommandozeile.
 
-  python -m simpledyno                       Oberflaeche starten
-  python -m simpledyno --sim                 Oberflaeche mit Simulator (ohne Hardware)
-  python -m simpledyno ports                 serielle Ports anzeigen
-  python -m simpledyno run --port SIM        Lauf ohne Oberflaeche (SIM = Simulator)
-  python -m simpledyno run --port SIM:DATEI  gespeicherten Lauf (LabVIEW-XML) als Live-Lauf abspielen
-  python -m simpledyno recalc DATEI.xml ...  LabVIEW-/SimpleDyno-Laeufe nachrechnen
-  python -m simpledyno compare A B C ...     Laeufe tabellarisch vergleichen
+  python -m pyst                       Oberflaeche starten
+  python -m pyst --sim                 Oberflaeche mit Simulator (ohne Hardware)
+  python -m pyst ports                 serielle Ports anzeigen
+  python -m pyst run --port SIM        Lauf ohne Oberflaeche (SIM = Simulator)
+  python -m pyst run --port SIM:DATEI  gespeicherten Lauf (LabVIEW-XML) als Live-Lauf abspielen
+  python -m pyst recalc DATEI.xml ...  LabVIEW-/PyST-Laeufe nachrechnen
+  python -m pyst compare A B C ...     Laeufe tabellarisch vergleichen
 """
 import argparse
 import re
@@ -145,7 +145,7 @@ def main(argv=None):
         from .gui import main as gui_main
         gui_main()
         return
-    ap = argparse.ArgumentParser(prog="simpledyno", description=__doc__,
+    ap = argparse.ArgumentParser(prog="pyst", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd")
     sub.add_parser("gui", help="Oberflaeche (Standard)")

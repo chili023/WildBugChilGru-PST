@@ -9,8 +9,8 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from simpledyno import link, lvxml, physics, storage  # noqa: E402
-from simpledyno.sim import SimEngine, SimSerial  # noqa: E402
+from pyst import link, lvxml, physics, storage  # noqa: E402
+from pyst.sim import SimEngine, SimSerial  # noqa: E402
 
 DATA = os.path.join(os.path.dirname(__file__), "data")
 
@@ -105,7 +105,7 @@ class Files(unittest.TestCase):
 
 class Database(unittest.TestCase):
     def test_vehicle_setup_run_import(self):
-        from simpledyno.db import Database as DB
+        from pyst.db import Database as DB
         with tempfile.TemporaryDirectory() as d:
             db = DB(os.path.join(d, "t.db"))
             vid = db.save_vehicle({"hersteller": "Aprilia", "modell": "SR2"})
@@ -125,14 +125,14 @@ class Database(unittest.TestCase):
 
 class Plotscale(unittest.TestCase):
     def test_aligned_axes(self):
-        from simpledyno.plots import aligned_scale
+        from pyst.plots import aligned_scale
         nm_top, nm_step, ps_top, ps_step, k = aligned_scale(22.8, 32.0)
         self.assertAlmostEqual(nm_top / nm_step, ps_top / ps_step, places=6)   # gleiche Anzahl Teilungen
         self.assertGreaterEqual(nm_top, 22.8)
         self.assertGreaterEqual(ps_top, 32.0)
 
     def test_limits(self):
-        from simpledyno.plots import aligned_scale
+        from pyst.plots import aligned_scale
         nm_top, nm_step, ps_top, ps_step, k = aligned_scale(25.0, 32.0, min_right=5.0, min_left=5.0)
         self.assertGreaterEqual(ps_top, 32.0)
         self.assertAlmostEqual(5.0 + k * ps_step, ps_top)

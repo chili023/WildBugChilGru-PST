@@ -23,13 +23,13 @@ Zum Ausdrucken und Ausfüllen. Werte in die Lücken `____` eintragen, Fotos mit 
 
 ---
 
-## B. Vergleichstest (Details: `PST-SimpleDyno/TESTPLAN.md`)
+## B. Vergleichstest (Details: `PyST/TESTPLAN.md`)
 
 - [ ] **B1** Alte Firmware sichern: `st-flash --connect-under-reset read ~/pst_firmware_backup_alt.bin 0x08000000 0x80000`
 - [ ] **B2** Test A: alte Firmware + alte LabVIEW, 3 Läufe, XML gespeichert
 - [ ] **B3** Neue Firmware flashen (`pio run -t upload`), `python3 tools/pst_monitor.py` → Version 1.0.0 sichtbar
 - [ ] **B4** Test B1/B2: neue Firmware + LabVIEW (3.2.1 / alte), Filter bei 60 Hz: **MA 105 / dq 45**, 3 Läufe
-- [ ] **B5** Test C: neue Firmware + SimpleDyno am Mac, 3 Läufe
+- [ ] **B5** Test C: neue Firmware + PyST am Mac, 3 Läufe
 - [ ] **B6** Gleiche Einstellungen überall: 100 Inkr/U, 1,57 m, J 13,5, i fest ____, n vom Gas ____ (über Haltedrehzahl!)
 
 | Test | Lauf 1 PS @ 1/min | Lauf 2 | Lauf 3 | COM-Fehler | Bemerkung |
@@ -37,7 +37,7 @@ Zum Ausdrucken und Ausfüllen. Werte in die Lücken `____` eintragen, Fotos mit 
 | A (alt/alt) | ____ | ____ | ____ | ____ | ____ |
 | B1 (neu/3.2.1) | ____ | ____ | ____ | ____ | ____ |
 | B2 (neu/alt) | ____ | ____ | ____ | ____ | ____ |
-| C (neu/SimpleDyno) | ____ | ____ | ____ | ____ | ____ |
+| C (neu/PyST) | ____ | ____ | ____ | ____ | ____ |
 
 Klima zu Beginn: ____ °C, ____ mbar, ____ %   Ende: ____ °C, ____ mbar
 
@@ -153,7 +153,7 @@ Klima zu Beginn: ____ °C, ____ mbar, ____ %   Ende: ____ °C, ____ mbar
 
 ## Mitbringen / ablegen
 
-- [ ] Alle LabVIEW-XML und SimpleDyno-Ordner → `docs/messung_30-09/`
+- [ ] Alle LabVIEW-XML und PyST-Ordner → `docs/messung_30-09/`
 - [ ] Fotos F1–F14 → `docs/messung_30-09/` bzw. W130/Endstufe → `docs/wsb_schenck_w130/`
 - [ ] Schaltplan-Scans → `docs/wsb_schenck_w130/`
 - [ ] Diese Liste ausgefüllt (Foto oder abgetippt)

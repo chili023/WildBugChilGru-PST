@@ -6,7 +6,7 @@ Ein Lauf = Ordner  messungen/YYMMDD_HHMMSS_<PS>_<n>/  mit
   kurve.csv     ausgewertete Kurve (n, PS, Nm, n gemessen, AFR, EGT)
   lauf.json     Parameter, Klima, Ergebnis, Firmware-Info
   lauf.xml      dasselbe im LabVIEW-3.2.1-Format (in LabVIEW-Recalc oeffnbar)
-Geladen werden SimpleDyno-Ordner (bzw. deren lauf.json) und LabVIEW-XML-Dateien.
+Geladen werden PyST-Ordner (bzw. deren lauf.json) und LabVIEW-XML-Dateien.
 """
 import csv
 import datetime as _dt
@@ -21,7 +21,8 @@ from . import lvxml, physics
 
 
 def default_dir() -> str:
-    return os.path.join(os.path.expanduser("~"), "SimpleDyno", "messungen")
+    from .db import base_dir
+    return os.path.join(base_dir(), "messungen")
 
 
 def save_run(ctrl, vehicle: str = "", firmware: str = "", base_dir: str = "") -> str:
@@ -49,7 +50,7 @@ def save_run(ctrl, vehicle: str = "", firmware: str = "", base_dir: str = "") ->
                 w.writerow([f"{x:.3f}" for x in row])
 
     meta: Dict[str, Any] = {
-        "programm": "SimpleDyno",
+        "programm": "PyST",
         "datum": _dt.datetime.now().isoformat(timespec="seconds"),
         "fahrzeug": vehicle,
         "firmware": firmware,
@@ -74,7 +75,7 @@ def save_run(ctrl, vehicle: str = "", firmware: str = "", base_dir: str = "") ->
 
 
 def load_any(path: str) -> Dict[str, Any]:
-    """Laedt LabVIEW-XML, SimpleDyno-Ordner oder lauf.json -> Rohdaten + Parameter."""
+    """Laedt LabVIEW-XML, PyST-Ordner oder lauf.json -> Rohdaten + Parameter."""
     if os.path.isdir(path):
         path = os.path.join(path, "lauf.json")
     if path.lower().endswith(".xml"):
@@ -96,7 +97,7 @@ def load_any(path: str) -> Dict[str, Any]:
         "params": p, "vehicle": meta.get("fahrzeug", ""), "title": "", "date": meta.get("datum", ""),
         "n_roll": np.array(cols["n_rolle_1_min"]), "dt": np.array(cols["dt_s"]),
         "n_meas": np.array(cols["n_zuendung_1_min"]), "afr": np.array(cols["afr"]),
-        "egt": np.array(cols["egt1_c"]), "source": "SimpleDyno", "name": os.path.basename(folder),
+        "egt": np.array(cols["egt1_c"]), "source": "PyST", "name": os.path.basename(folder),
         "meta": meta, "columns": {k: np.array(v) for k, v in cols.items()},
     }
 

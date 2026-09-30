@@ -1,4 +1,4 @@
-# SimpleDyno
+# PyST
 
 Einfaches Prüfstandsprogramm zum Testen der neuen PST-STM32-Firmware – ohne Windows und ohne LabVIEW.
 Läuft auf **Mac**, **Linux/Raspberry Pi** (und Windows).
@@ -10,12 +10,12 @@ Läuft auf **Mac**, **Linux/Raspberry Pi** (und Windows).
 - Live-Anzeige (Motor berechnet und gemessen, km/h, Messfrequenz, verlorene Telegramme), Live-Kurve
 - **Rechnet exakt wie LabVIEW 3.2.1.** Geprüft an sechs echten Läufen vom 26.05.26: gleiche Pmax auf 0,1 PS, gleiche n(Pmax).
 - Speichert jeden Lauf als CSV, JSON, PNG und **LabVIEW-XML** (öffnet in LabVIEW-Recalc)
-- lädt LabVIEW-Läufe und SimpleDyno-Läufe zum Vergleich (Überlagerung und Tabelle)
+- lädt LabVIEW-Läufe und PyST-Läufe zum Vergleich (Überlagerung und Tabelle)
 - eingebauter **Simulator**, um ohne Prüfstand zu testen
 
 Testablauf für den Vergleich alt/neu: siehe [TESTPLAN.md](TESTPLAN.md).
 
-![Auswertung](../docs/bilder/simpledyno_auswertung.png)
+![Auswertung](../docs/bilder/pyst_auswertung.png)
 
 ## Oberfläche
 
@@ -27,10 +27,15 @@ Testablauf für den Vergleich alt/neu: siehe [TESTPLAN.md](TESTPLAN.md).
 | **Einstellungen** | Verbindung, Prüfstand, Lauf, Filter & Verluste, Klima, Anzeige (λ oder AFR) |
 
 - Während eines Laufs bleibt die Skalierung wie beim vorherigen Lauf stehen; danach wird neu skaliert.
+- Achsgrenzen über dem Diagramm: Drehzahl von/bis, PS von/bis, Nm von/bis (z.B. ab 5000 1/min und ab 5 PS);
+  „auto“ = aus den Kurven, „Achsen auto“ setzt alles zurück. Gilt auch für den PDF-Bericht.
+- Filter in Sekunden (Standard 1,75 s / 0,75 s) passen sich der Messfrequenz an; Modus „Messpunkte (wie LabVIEW)“
+  für den direkten Vergleich mit LabVIEW. LabVIEW-Läufe im Simulator schalten automatisch auf Messpunkte.
 - Nm-Achse mit runder Teilung, die PS-Achse wird so gelegt, dass ihre Striche auf denselben Gitterlinien liegen.
-- Läufe bleiben in der Datenbank (`~/SimpleDyno/simpledyno.db`, Messdaten in `~/SimpleDyno/messungen/`).
+- Läufe bleiben in der Datenbank (`~/PyST/pyst.db`, Messdaten in `~/PyST/messungen/`; ein vorhandener
+  Ordner `~/SimpleDyno/` der Vorversion wird weiter benutzt).
   Rechtsklick auf einen Lauf: Notiz, Farbe, Fahrzeug/Setup zuordnen, mit aktuellen Einstellungen neu rechnen, CSV, löschen.
-- **Import** von LabVIEW-XML und SimpleDyno-Läufen, **Export** als PDF-Bericht (sichtbare Läufe + Setup-Daten) und CSV (Excel deutsch oder international).
+- **Import** von LabVIEW-XML und PyST-Läufen, **Export** als PDF-Bericht (sichtbare Läufe + Setup-Daten) und CSV (Excel deutsch oder international).
 - Neue Messkanäle (z.B. rusEFI: TPS, λ, MAP, Zündwinkel; später WSB) sind zusätzliche Spalten in `roh.csv` und
   erscheinen automatisch im Auswerter und im CSV-Export.
 
@@ -39,7 +44,7 @@ Testablauf für den Vergleich alt/neu: siehe [TESTPLAN.md](TESTPLAN.md).
 **Mac:** Doppelklick auf `start_mac.command` (beim ersten Mal wird alles eingerichtet), oder im Terminal:
 
 ```bash
-cd PST-SimpleDyno
+cd PST-PyST
 ./start_mac.command            # mit Prüfstand
 ./start_mac.command --sim      # Simulator: spielt den echten Lauf 161802 (26.05.26) ab
 ./start_mac.command --sim --synth   # Simulator mit synthetischem Motor
@@ -65,10 +70,10 @@ Der Nucleo erscheint als `/dev/ttyACM0`.
 ## Kommandozeile (ohne Oberfläche)
 
 ```bash
-./.venv/bin/python -m simpledyno ports                              # Ports anzeigen
-./.venv/bin/python -m simpledyno run --port SIM --n-stop 8000       # Lauf im Terminal
-./.venv/bin/python -m simpledyno recalc ../*.xml                    # LabVIEW-Läufe nachrechnen
-./.venv/bin/python -m simpledyno compare A.xml B.xml ~/SimpleDyno/messungen/*/lauf.json
+./.venv/bin/python -m pyst ports                              # Ports anzeigen
+./.venv/bin/python -m pyst run --port SIM --n-stop 8000       # Lauf im Terminal
+./.venv/bin/python -m pyst recalc ../*.xml                    # LabVIEW-Läufe nachrechnen
+./.venv/bin/python -m pyst compare A.xml B.xml ~/PyST/messungen/*/lauf.json
 ```
 
 Alle Prüfstandsparameter lassen sich überschreiben, z.B. `--ratio 6.85 --inertia 13.5 --n-min 4000`.
@@ -76,10 +81,10 @@ Alle Prüfstandsparameter lassen sich überschreiben, z.B. `--ratio 6.85 --inert
 ## Bedienung
 
 1. Port wählen → **Verbinden**. Die Firmware-Version erscheint unter dem Knopf.
-2. Prüfstand- und Laufdaten prüfen. Sie werden in `~/SimpleDyno/einstellungen.json` gespeichert.
+2. Prüfstand- und Laufdaten prüfen. Sie werden in `~/PyST/einstellungen.json` gespeichert.
 3. Drehzahl unter *n vom Gas* halten → **START (F1)** → Klima wird gelesen → **GO – Vollgas!**
 4. Über *n vom Gas* beginnt die Messung (gelb), ab *n Stop* erscheint **GAS WEG!** (rot).
-5. Ergebnis wird angezeigt und (Auto-Speichern) unter `~/SimpleDyno/messungen/` abgelegt.
+5. Ergebnis wird angezeigt und (Auto-Speichern) unter `~/PyST/messungen/` abgelegt.
 6. **Abbrechen (Esc)** jederzeit.
 
 *n vom Gas* muss über der Haltedrehzahl liegen. Sonst erkennt die Auswertung (wie LabVIEW) schon
@@ -96,7 +101,7 @@ beim Halten ein „Laufende“, weil die Drehzahl dort schwankt.
   oberhalb von *n vom Gas* (oder bei *n Stop*). Unter der Schwelle wird nichts abgeschnitten. Entfernt wird nur
   der Vorlauf bis zur letzten fallenden Drehzahl unterhalb der Schwelle (das Halten vor dem Gasgeben).
 
-Details und Quellenhinweise stehen in `simpledyno/physics.py`.
+Details und Quellenhinweise stehen in `pyst/physics.py`.
 
 ## Tests
 
@@ -107,18 +112,18 @@ Details und Quellenhinweise stehen in `simpledyno/physics.py`.
 ## Aufbau
 
 ```
-simpledyno/physics.py   Auswertung (LabVIEW-identisch)
-simpledyno/link.py      serielle Verbindung (STM32-Firmware, Arduino-Mega-Sketch)
-simpledyno/runner.py    Ablauf eines Laufs
-simpledyno/storage.py   Speichern/Laden (CSV, JSON, LabVIEW-XML)
-simpledyno/lvxml.py     LabVIEW-Datenspeicher lesen/schreiben
-simpledyno/sim.py       Simulator (Firmware + Motor + Rolle)
-simpledyno/gui.py       Oberfläche (PySide6 + pyqtgraph)
-simpledyno/plots.py     Leistungsdiagramm mit ausgerichteten Achsen und Cursor
-simpledyno/viewer.py    Auswerter (MegaLogViewer-Stil)
-simpledyno/db.py        Datenbank Fahrzeuge / Setups / Läufe (SQLite)
-simpledyno/channels.py  Messkanäle eines Laufs (roh + abgeleitet + Zusatzkanäle)
-simpledyno/report.py    PDF- und CSV-Export
-simpledyno/widgets.py   Anzeigen (live und am Cursor)
-simpledyno/dialogs.py   Eingabemasken Fahrzeug/Setup, Bearbeiten-Dialog
+pyst/physics.py   Auswertung (LabVIEW-identisch)
+pyst/link.py      serielle Verbindung (STM32-Firmware, Arduino-Mega-Sketch)
+pyst/runner.py    Ablauf eines Laufs
+pyst/storage.py   Speichern/Laden (CSV, JSON, LabVIEW-XML)
+pyst/lvxml.py     LabVIEW-Datenspeicher lesen/schreiben
+pyst/sim.py       Simulator (Firmware + Motor + Rolle)
+pyst/gui.py       Oberfläche (PySide6 + pyqtgraph)
+pyst/plots.py     Leistungsdiagramm mit ausgerichteten Achsen und Cursor
+pyst/viewer.py    Auswerter (MegaLogViewer-Stil)
+pyst/db.py        Datenbank Fahrzeuge / Setups / Läufe (SQLite)
+pyst/channels.py  Messkanäle eines Laufs (roh + abgeleitet + Zusatzkanäle)
+pyst/report.py    PDF- und CSV-Export
+pyst/widgets.py   Anzeigen (live und am Cursor)
+pyst/dialogs.py   Eingabemasken Fahrzeug/Setup, Bearbeiten-Dialog
 ```
