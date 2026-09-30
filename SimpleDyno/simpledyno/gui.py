@@ -25,6 +25,7 @@ from .widgets import Gauge
 
 SETTINGS_FILE = os.path.join(os.path.expanduser("~"), "SimpleDyno", "einstellungen.json")
 LIVE_KEY = "live"
+FILTER_S_DEFAULT = (1.75, 0.75)       # = LabVIEW 35/15 bei 20 Hz
 
 # (Feld, Beschriftung, Min, Max, Nachkommastellen)
 PARAM_FIELDS = {
@@ -40,8 +41,10 @@ PARAM_FIELDS = {
         ("n_stop", "n Stop [1/min] (0 = aus)", 0, 30000, 0),
     ],
     "Filter && Verluste": [
-        ("ma", "Gleitender Mittelwert", 1, 255, 0),
-        ("dq", "Differenzenquotient", 1, 255, 0),
+        ("ma_s", "Gleitender Mittelwert [s]", 0.02, 10, 2),
+        ("dq_s", "Differenzenquotient ± [s]", 0.02, 5, 2),
+        ("ma", "Gleitender Mittelwert [Punkte]", 1, 255, 0),
+        ("dq", "Differenzenquotient [Punkte]", 1, 255, 0),
         ("m0", "Verlustmoment M0 [Nm]", -100, 100, 2),
         ("m1", "Verlustmoment M1 [Nm]", -100, 100, 2),
         ("n1", "bei Rollendrehzahl n1 [1/min]", 1, 100000, 0),
@@ -107,14 +110,28 @@ class SettingsPage(QtWidgets.QScrollArea):
         self.fields: Dict[str, QtWidgets.QDoubleSpinBox] = {}
         defaults = physics.DynoParams(**{k: v for k, v in settings.get("params", {}).items()
                                          if k in physics.DynoParams.__dataclass_fields__})
+        self.filter_seconds = settings.get("filter_seconds", True)
+        if defaults.ma_s <= 0:
+            defaults.ma_s = settings.get("ma_s", FILTER_S_DEFAULT[0])
+        if defaults.dq_s <= 0:
+            defaults.dq_s = settings.get("dq_s", FILTER_S_DEFAULT[1])
         pos = [(0, 1), (1, 0), (1, 1), (2, 0)]
         for (group, fields), (r, c) in zip(PARAM_FIELDS.items(), pos):
             box = QtWidgets.QGroupBox(group)
             fl = QtWidgets.QFormLayout(box)
+            if group == "Filter && Verluste":
+                self.filter_form = fl
+                self.filter_mode = QtWidgets.QComboBox()
+                self.filter_mode.addItems(["Sekunden (passt sich der Messfrequenz an)",
+                                           "Messpunkte (wie LabVIEW)"])
+                self.filter_mode.setCurrentIndex(0 if self.filter_seconds else 1)
+                fl.addRow("Filter in", self.filter_mode)
             for key, label, lo, hi, dec in fields:
                 sp = QtWidgets.QDoubleSpinBox()
                 sp.setRange(lo, hi)
                 sp.setDecimals(dec)
+                if dec == 2 and key.endswith("_s"):
+                    sp.setSingleStep(0.05)
                 sp.setValue(float(getattr(defaults, key)))
                 sp.setKeyboardTracking(False)
                 self.fields[key] = sp
@@ -159,24 +176,53 @@ class SettingsPage(QtWidgets.QScrollArea):
         for k in ("temp_c", "p_mbar"):
             self.fields[k].valueChanged.connect(self.update_ka)
         self.update_ka()
+        self.filter_mode.currentIndexChanged.connect(lambda i: self.set_filter_seconds(i == 0))
+        self.set_filter_seconds(self.filter_seconds)
+        self._rate = 60.0
+
+    def set_filter_seconds(self, on: bool):
+        self.filter_seconds = on
+        self.filter_mode.blockSignals(True)
+        self.filter_mode.setCurrentIndex(0 if on else 1)
+        self.filter_mode.blockSignals(False)
+        for k in ("ma_s", "dq_s"):
+            self.filter_form.setRowVisible(self.fields[k], on)
+        for k in ("ma", "dq"):
+            self.filter_form.setRowVisible(self.fields[k], not on)
+        self.update_filter_label()
 
     def params(self) -> physics.DynoParams:
         d = {k: sp.value() for k, sp in self.fields.items()}
         d["ma"], d["dq"] = int(d["ma"]), int(d["dq"])
+        if not self.filter_seconds:
+            d["ma_s"] = d["dq_s"] = 0.0
         return physics.DynoParams(**d)
 
     def set_params(self, p: physics.DynoParams):
+        """Filter in Sekunden, wenn p sie hat, sonst Messpunkte (z.B. LabVIEW-Lauf im Simulator)."""
         for k, sp in self.fields.items():
-            sp.setValue(float(getattr(p, k)))
+            v = float(getattr(p, k))
+            if k in ("ma_s", "dq_s") and v <= 0:
+                continue                                # Sekundenwerte behalten
+            sp.setValue(v)
+        self.set_filter_seconds(p.ma_s > 0 or p.dq_s > 0)
 
     def update_ka(self):
         ka = physics.din70020(self.fields["temp_c"].value(), self.fields["p_mbar"].value())
         self.ka_label.setText(f"DIN 70020 k = {ka:.3f}")
 
-    def update_filter_label(self, rate: float):
-        ma, dq = self.fields["ma"].value(), self.fields["dq"].value()
-        self.filter_label.setText(f"Bei {rate:.0f} Hz: Mittelwert {ma / rate:.2f} s, Differenz ±{dq / rate:.2f} s. "
-                                  f"Filter zählen Messpunkte – 20-Hz-Werte bei 60 Hz ×3 nehmen.")
+    def update_filter_label(self, rate: Optional[float] = None):
+        if rate:
+            self._rate = rate
+        rate = getattr(self, "_rate", 60.0)
+        if self.filter_seconds:
+            q = physics.effective(self.params(), rate)
+            self.filter_label.setText(f"Bei {rate:.0f} Hz: MA {q.ma} / dq {q.dq} Messpunkte. "
+                                      f"LabVIEW-Standard 35/15 bei 20 Hz = 1,75 s / 0,75 s.")
+        else:
+            ma, dq = self.fields["ma"].value(), self.fields["dq"].value()
+            self.filter_label.setText(f"Bei {rate:.0f} Hz: Mittelwert {ma / rate:.2f} s, Differenz ±{dq / rate:.2f} s. "
+                                      f"Messpunkte – 20-Hz-Werte bei 60 Hz ×3 nehmen.")
 
 
 # =============================================================================================== Datenbank
@@ -470,6 +516,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ll = QtWidgets.QVBoxLayout(left)
         ll.setContentsMargins(0, 0, 0, 0)
         self.plot = DynoPlot()
+        ll.addLayout(self._build_limits())
         ll.addWidget(self.plot, 1)
         legend = QtWidgets.QLabel("oben: ── Leistung [PS]   ╌╌ Drehmoment [Nm]      "
                                   "unten: ── Lambda   ╌╌ EGT 1   ┈┈ EGT 2      "
@@ -547,6 +594,50 @@ class MainWindow(QtWidgets.QMainWindow):
             a.triggered.connect(slot)
             a.setShortcut(key)
 
+    def _build_limits(self) -> QtWidgets.QHBoxLayout:
+        """Zeile ueber dem Diagramm: feste Achsgrenzen (auto = aus den Kurven)."""
+        hb = QtWidgets.QHBoxLayout()
+        hb.setContentsMargins(4, 0, 4, 0)
+        saved = self.settings.get("plot_limits", {})
+        self.limit_fields: Dict[str, QtWidgets.QSpinBox] = {}
+        for label, lo_key, hi_key, top, step in (("Drehzahl", "n_lo", "n_hi", 30000, 500),
+                                                 ("Leistung PS", "ps_lo", "ps_hi", 2000, 5),
+                                                 ("Drehmoment Nm", "nm_lo", "nm_hi", 5000, 5)):
+            hb.addWidget(QtWidgets.QLabel(label))
+            for key, pre in ((lo_key, "von "), (hi_key, "bis ")):
+                sp = QtWidgets.QSpinBox()
+                sp.setRange(0, top)
+                sp.setSingleStep(step)
+                sp.setPrefix(pre)
+                sp.setSpecialValueText(pre + "auto")
+                sp.setValue(int(saved.get(key, 0) or 0))
+                sp.setKeyboardTracking(False)
+                sp.setToolTip("0 = automatisch aus den Kurven")
+                sp.valueChanged.connect(self._limits_changed)
+                self.limit_fields[key] = sp
+                hb.addWidget(sp)
+            hb.addSpacing(12)
+        b = QtWidgets.QPushButton("Achsen auto")
+        b.setToolTip("Alle Grenzen zurück auf automatisch")
+        b.clicked.connect(self._limits_reset)
+        hb.addWidget(b)
+        hb.addStretch(1)
+        self.plot.set_limits({k: sp.value() for k, sp in self.limit_fields.items()})
+        return hb
+
+    def _limits_changed(self, _=None):
+        lim = {k: sp.value() for k, sp in self.limit_fields.items()}
+        self.plot.set_limits(lim)
+        self.settings["plot_limits"] = lim
+        save_settings(self.settings)
+
+    def _limits_reset(self):
+        for sp in self.limit_fields.values():
+            sp.blockSignals(True)
+            sp.setValue(0)
+            sp.blockSignals(False)
+        self._limits_changed()
+
     def _wire(self):
         s = self.page_settings
         s.refresh_btn.clicked.connect(self._refresh_ports)
@@ -555,7 +646,7 @@ class MainWindow(QtWidgets.QMainWindow):
         s.climate_btn.clicked.connect(self.on_climate)
         s.ratio_btn.clicked.connect(self.on_measure_ratio)
         s.lambda_radio.toggled.connect(self._lambda_mode_changed)
-        for k in ("ma", "dq"):
+        for k in ("ma", "dq", "ma_s", "dq_s"):
             s.fields[k].valueChanged.connect(lambda _=None: s.update_filter_label(self._current_rate()))
         self.start_btn.clicked.connect(self.on_start)
         self.abort_btn.clicked.connect(self.on_abort)
@@ -749,6 +840,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "port": port if not port.startswith(SIM_PORT + ":") or port == DEFAULT_SIM_PORT
             else self.settings.get("port", ""),
             "params": asdict(s.params()), "autosave": self.autosave.isChecked(),
+            "filter_seconds": s.filter_seconds, "ma_s": s.fields["ma_s"].value(), "dq_s": s.fields["dq_s"].value(),
             "climate_auto": s.climate_auto.isChecked(), "live": s.live_check.isChecked(),
             "lambda": s.lambda_radio.isChecked(), "vehicle_id": self.vehicle_combo.currentData(),
             "setup_id": self.setup_combo.currentData(), "run_filter": self.run_filter.currentIndex(),
@@ -934,7 +1026,7 @@ class MainWindow(QtWidgets.QMainWindow):
         e = self._entry(rid)
         p = self.page_settings.params()
         if e:
-            p = physics.scale_filters(p, self._current_rate(), physics.sample_rate(e[0]["dt"]))
+            p = physics.scale_filters(p, self._current_rate(), physics.sample_rate(e[0]["dt"]))   # nur Messpunkt-Modus
             p.temp_c, p.p_mbar = e[3].temp_c, e[3].p_mbar          # Klima des Laufs behalten
         self.db.update_run(rid, params=asdict(p))
         self.cache.pop(rid, None)
@@ -1124,7 +1216,7 @@ class MainWindow(QtWidgets.QMainWindow):
         egt2 = np.array([f.egt2 for f in self.ctrl.frames])[r.segment] if self.ctrl.frames else None
         # live: die letzten dq Punkte sind noch nicht endgueltig (Differenzenquotient braucht Punkte
         # "aus der Zukunft") -> weglassen, statt einen falschen Knick zu zeigen
-        k = len(r.n) if final else max(0, len(r.n) - int(self.ctrl.params.dq))
+        k = len(r.n) if final else max(0, len(r.n) - int(r.dq_used or self.ctrl.params.dq))
         if k < 2:
             return
         cut = lambda a: None if a is None else a[:k]
@@ -1211,7 +1303,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 "klima": "" if p is None else
                 f"{p.temp_c:.1f} °C, {p.p_mbar:.0f} mbar\nk = {physics.din70020(p.temp_c, p.p_mbar):.3f}",
                 "details": "" if p is None else
-                f"i = {p.ratio:.3f}, J = {p.inertia:.2f}\nMA {p.ma} / dq {p.dq}, {row.rate:.0f} Hz",
+                f"i = {p.ratio:.3f}, J = {p.inertia:.2f}\n{physics.filter_text(p, row.rate)}",
             })
         return rows
 

@@ -19,6 +19,7 @@ import pyqtgraph as pg
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from .db import SETUP_FIELDS, Database
+from . import physics
 from .dialogs import EditDialog
 import json
 
@@ -660,7 +661,8 @@ class LogViewer(QtWidgets.QWidget):
             if p:
                 d["Übersetzung (Rechnung)"] = f"{p.get('ratio', 0):.3f}"
                 d["Trägheit J"] = f"{p.get('inertia', 0):.2f}"
-                d["Filter MA/dq"] = f"{p.get('ma', '')}/{p.get('dq', '')} bei {row.rate:.0f} Hz"
+                pp = physics.DynoParams(**{k: v for k, v in p.items() if k in physics.DynoParams.__dataclass_fields__})
+                d["Filter"] = physics.filter_text(pp, row.rate)
                 d["Klima"] = f"{p.get('temp_c', 0):.1f} °C, {p.get('p_mbar', 0):.0f} mbar"
             rows_data.append((row, d))
         keys: List[str] = []

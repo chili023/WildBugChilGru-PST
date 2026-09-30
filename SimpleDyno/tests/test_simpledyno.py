@@ -131,6 +131,38 @@ class Plotscale(unittest.TestCase):
         self.assertGreaterEqual(nm_top, 22.8)
         self.assertGreaterEqual(ps_top, 32.0)
 
+    def test_limits(self):
+        from simpledyno.plots import aligned_scale
+        nm_top, nm_step, ps_top, ps_step, k = aligned_scale(25.0, 32.0, min_right=5.0, min_left=5.0)
+        self.assertGreaterEqual(ps_top, 32.0)
+        self.assertAlmostEqual(5.0 + k * ps_step, ps_top)
+        self.assertAlmostEqual(5.0 + k * nm_step, nm_top)
+        _, _, ps_top, _, _ = aligned_scale(25.0, 40.0, fixed_left=True)
+        self.assertAlmostEqual(ps_top, 40.0)
+
+
+class Filters(unittest.TestCase):
+    def test_seconds_follow_rate(self):
+        p = physics.DynoParams(ma_s=1.75, dq_s=0.75)
+        for rate, ma, dq in ((20.0, 35, 15), (60.0, 105, 45), (61.0, 107, 46)):
+            q = physics.effective(p, rate)
+            self.assertEqual((q.ma, q.dq), (ma, dq))
+            self.assertEqual((q.ma_s, q.dq_s), (0.0, 0.0))
+        lv = physics.DynoParams(ma=35, dq=15)                 # LabVIEW-Lauf: Messpunkte bleiben
+        self.assertEqual(physics.effective(lv, 60.0).ma, 35)
+
+    def test_same_time_same_power(self):
+        """Gleicher Motor bei 20 und 60 Hz: mit Filtern in Sekunden praktisch gleiche Pmax."""
+        p = physics.DynoParams(ma_s=1.75, dq_s=0.75, n_stop=0)
+        pmax = {}
+        for rate in (20.0, 60.0):
+            fr = sim_run(SimEngine(rate=rate, noise=0.0005))
+            n_roll = np.array([f.roll_hz for f in fr]) * 60 / p.inkr
+            dt = np.array([1 / f.rate for f in fr])
+            r = physics.evaluate(n_roll, dt, p)
+            self.assertEqual((r.ma_used, r.dq_used), (round(1.75 * rate), round(0.75 * rate)))
+            pmax[rate] = r.p_max
+        self.assertAlmostEqual(pmax[20.0], pmax[60.0], delta=0.1)
 
 if __name__ == "__main__":
     unittest.main()

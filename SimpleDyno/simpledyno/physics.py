@@ -88,8 +88,10 @@ class DynoParams:
     inertia: float = 13.5         # Rollentraegheit [kgm^2]
     imp: float = 1.0              # Zuendimpulse pro Kurbelwellenumdrehung
     ratio: float = 6.85           # nKurbelwelle / nRolle (fest)
-    ma: int = 35                  # Gleitender Mittelwert
-    dq: int = 15                  # Differenzenquotient
+    ma: int = 35                  # Gleitender Mittelwert [Messpunkte] (wie LabVIEW)
+    dq: int = 15                  # Differenzenquotient [Messpunkte] (wie LabVIEW)
+    ma_s: float = 0.0             # > 0: Glaettung in Sekunden, MA = ma_s * Messfrequenz (ersetzt ma)
+    dq_s: float = 0.0             # > 0: Differenz +- in Sekunden, dq = dq_s * Messfrequenz (ersetzt dq)
     n_min: float = 4000.0         # "n vom Gas": Start-/Endschwelle [1/min], ueber Haltedrehzahl!
     n_stop: float = 8000.0        # Lauf endet bei dieser Motordrehzahl (0 = aus, wie LabVIEW)
     m0: float = 0.0               # Verlustmoment bei n=0 [Nm]
@@ -124,6 +126,8 @@ class RunResult:
     full_nm: Optional[np.ndarray] = None
     full_accel: Optional[np.ndarray] = None   # Winkelbeschleunigung Motor [rad/s^2]
     stop: int = 0                             # Ende des Kurvenbereichs (exklusiv)
+    ma_used: int = 0                          # tatsaechlich verwendete Filter [Messpunkte]
+    dq_used: int = 0
 
     @property
     def segment(self) -> slice:
@@ -140,10 +144,43 @@ def sample_rate(dt) -> float:
     return 1.0 / float(np.mean(dt)) if len(dt) and np.mean(dt) > 0 else 0.0
 
 
+def effective(p: DynoParams, rate: float) -> DynoParams:
+    """Filter in Sekunden (ma_s/dq_s) fuer die Messfrequenz `rate` in Messpunkte aufloesen.
+    Ohne Sekunden-Angabe bleiben ma/dq unveraendert (LabVIEW-Laeufe rechnen damit identisch)."""
+    if (p.ma_s <= 0 and p.dq_s <= 0) or rate <= 0:
+        return p
+    q = DynoParams(**p.__dict__)
+    if p.ma_s > 0:
+        q.ma = int(max(1, round(p.ma_s * rate)))
+    if p.dq_s > 0:
+        q.dq = int(max(1, round(p.dq_s * rate)))
+    q.ma_s = q.dq_s = 0.0
+    return q
+
+
+def filter_text(p: DynoParams, rate: float) -> str:
+    """Kurzbeschreibung der Filter, z.B. 'MA 1,75 s / dq ±0,75 s (105/45 bei 60 Hz)'."""
+    q = effective(p, rate)
+    if p.ma_s > 0 or p.dq_s > 0:
+        return (f"MA {q.ma / rate if rate > 0 else p.ma_s:.2f} s / dq ±{q.dq / rate if rate > 0 else p.dq_s:.2f} s "
+                f"({q.ma}/{q.dq} bei {rate:.0f} Hz)")
+    return f"MA {p.ma} / dq {p.dq} Messpunkte" + (f" bei {rate:.0f} Hz" if rate > 0 else "")
+
+
+def filters_to_seconds(p: DynoParams, rate: float) -> DynoParams:
+    """Messpunkt-Filter eines Laufs in Sekunden umrechnen (fuer "mit aktuellen Einstellungen")."""
+    q = DynoParams(**p.__dict__)
+    if rate > 0 and q.ma_s <= 0:
+        q.ma_s = p.ma / rate
+    if rate > 0 and q.dq_s <= 0:
+        q.dq_s = p.dq / rate
+    return q
+
+
 def scale_filters(p: DynoParams, rate_from: float, rate_to: float) -> DynoParams:
     """Filter (in Messpunkten!) auf gleiche Glaettungs-ZEIT bei anderer Messfrequenz umrechnen.
-    Beispiel: MA35/dq15 bei 20 Hz  ->  MA105/dq45 bei 60 Hz."""
-    if rate_from <= 0 or rate_to <= 0:
+    Beispiel: MA35/dq15 bei 20 Hz  ->  MA105/dq45 bei 60 Hz. Filter in Sekunden bleiben unveraendert."""
+    if rate_from <= 0 or rate_to <= 0 or p.ma_s > 0 or p.dq_s > 0:
         return p
     f = rate_to / rate_from
     q = DynoParams(**p.__dict__)
@@ -159,6 +196,8 @@ def check_params(p: DynoParams) -> str:
                 f"dazwischen liegt die Messkurve.")
     if p.ratio <= 0 or p.inkr <= 0 or p.imp <= 0 or p.inertia <= 0:
         return "Uebersetzung, Inkremente, Zuendimpulse und Traegheit muessen > 0 sein."
+    if p.ma_s < 0 or p.dq_s < 0 or (p.ma_s <= 0 and p.ma < 1) or (p.dq_s <= 0 and p.dq < 1):
+        return "Filterwerte muessen > 0 sein."
     return ""
 
 
@@ -171,6 +210,7 @@ def evaluate(n_roll_raw, dt_raw, p: DynoParams, n_meas_raw=None, afr_raw=None, e
     N = len(n_roll_raw)
     if N < 3 or len(dt_raw) != N:
         return None
+    p = effective(p, sample_rate(dt_raw))          # Filter in Sekunden -> Messpunkte
     zeros = np.zeros(N)
     have_meas = n_meas_raw is not None
     n_meas_raw = np.asarray(n_meas_raw, dtype=float) if have_meas else zeros
@@ -228,7 +268,7 @@ def evaluate(n_roll_raw, dt_raw, p: DynoParams, n_meas_raw=None, afr_raw=None, e
     res = RunResult(n=n_e[sl], ps=ps[sl], nm=m[sl], n_meas=n_meas_f[sl], afr=afr_raw[sl], egt=egt_raw[sl],
                     ka=ka, end_index=e if reason != "noch kein Laufende" else -1, start_index=start,
                     end_reason=reason, warnings=warnings, full_n=n_e, full_ps=ps, full_nm=m, full_accel=a,
-                    stop=e)
+                    stop=e, ma_used=int(p.ma), dq_used=int(p.dq))
     finite = np.isfinite(res.ps)
     if finite.any():
         jp = int(np.nanargmax(np.where(finite, res.ps, -np.inf)))

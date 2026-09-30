@@ -66,7 +66,9 @@ def save_run(ctrl, vehicle: str = "", firmware: str = "", base_dir: str = "") ->
     }
     with open(os.path.join(folder, "lauf.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=2, ensure_ascii=False)
-    lvxml.write_run(os.path.join(folder, "lauf.xml"), p, n_roll, n_meas, afr, egt, dt,
+    # LabVIEW-Datei mit Filtern in Messpunkten (LabVIEW kennt keine Sekunden)
+    lvxml.write_run(os.path.join(folder, "lauf.xml"), physics.effective(p, physics.sample_rate(dt)),
+                    n_roll, n_meas, afr, egt, dt,
                     vehicle=vehicle, distance_m=res.distance_m if res else 0.0, port=ctrl.link.port)
     return folder
 

@@ -50,19 +50,27 @@ def _fmt(v: float, step: float) -> str:
 
 
 def aligned_scale(max_right: float, max_left: float, intervals: int = 6,
-                  min_right: float = 0.0, min_left: float = 0.0) -> Tuple[float, float, float, float, int]:
-    """Rechte Achse rund, linke Achse passend. -> (rechts_oben, rechts_schritt, links_oben, links_schritt, k)"""
-    span_r = max(1e-6, (max_right - min_right) * 1.06)
+                  min_right: float = 0.0, min_left: float = 0.0,
+                  fixed_right: bool = False, fixed_left: bool = False) -> Tuple[float, float, float, float, int]:
+    """Rechte Achse rund, linke Achse passend. -> (rechts_oben, rechts_schritt, links_oben, links_schritt, k)
+    min_*: untere Grenze der Achse. fixed_*: max_* ist eine feste Grenze (kein Rand von 6 %); die linke
+    Achse endet dann genau dort, die rechte auf dem naechsten runden Strich."""
+    span_r = max(1e-6, (max_right - min_right) * (1.0 if fixed_right else 1.06))
     step_r = nice_step(span_r / intervals)
     k = max(2, int(math.ceil(span_r / step_r - 1e-9)))
     top_r = min_right + k * step_r
-    span_l = max(1e-6, (max_left - min_left) * 1.06)
+    span_l = max(1e-6, (max_left - min_left) * (1.0 if fixed_left else 1.06))
     step_l = span_l / k
-    # linke Teilung auf 2 signifikante Stellen aufrunden ("krumm", aber lesbar)
-    mag = 10 ** math.floor(math.log10(step_l))
-    step_l = math.ceil(step_l / mag * 10) / 10 * mag
+    if not fixed_left:
+        # linke Teilung auf 2 signifikante Stellen aufrunden ("krumm", aber lesbar)
+        mag = 10 ** math.floor(math.log10(step_l))
+        step_l = math.ceil(step_l / mag * 10) / 10 * mag
     top_l = min_left + k * step_l
     return top_r, step_r, top_l, step_l, k
+
+
+# Achsgrenzen, die der Benutzer festlegen kann (0 = automatisch)
+LIMIT_KEYS = ("n_lo", "n_hi", "ps_lo", "ps_hi", "nm_lo", "nm_hi")
 
 
 class DualAxisPlot:
@@ -130,6 +138,7 @@ class DynoPlot(pg.GraphicsLayoutWidget):
         self.data: Dict[str, Dict[str, np.ndarray]] = {}
         self.frozen = False
         self.last_scale: Optional[dict] = None
+        self.limits: Dict[str, float] = {k: 0.0 for k in LIMIT_KEYS}
         self.cursor_lines = []
         for plot in (self.top.pi, self.bottom.pi):
             line = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen("#555555", width=1, style=QtCore.Qt.DashLine))
@@ -212,11 +221,31 @@ class DynoPlot(pg.GraphicsLayoutWidget):
         x = (math.floor(min(xs) / step) * step, math.ceil(max(xs) / step) * step)
         self.apply_scale({"x": x, "ps": max(ps), "nm": max(nm), "egt": max(egt) or 800.0})
 
+    def set_limits(self, limits: Dict[str, float]):
+        """Feste Achsgrenzen (0 = automatisch), z.B. {"n_lo": 5000, "ps_lo": 5}. Wirkt sofort."""
+        self.limits = {k: float(limits.get(k, 0.0) or 0.0) for k in LIMIT_KEYS}
+        if self.frozen and self.last_scale:
+            self.apply_scale(self.last_scale)
+        elif self.data:
+            self.auto_scale()
+        else:
+            self.apply_scale(self.last_scale or self.default_scale())
+
     def apply_scale(self, sc: dict):
         self.last_scale = dict(sc)
-        self.top.pi.setXRange(sc["x"][0], sc["x"][1], padding=0)
-        nm_top, nm_step, ps_top, ps_step, _ = aligned_scale(sc["nm"] or 1.0, sc["ps"] or 1.0)
-        self.top.set_scales((0.0, ps_top, ps_step), (0.0, nm_top, nm_step))
+        lim = self.limits
+        x_lo = lim["n_lo"] or sc["x"][0]
+        x_hi = lim["n_hi"] or sc["x"][1]
+        if x_hi <= x_lo:
+            x_hi = x_lo + 1000.0
+        self.top.pi.setXRange(x_lo, x_hi, padding=0)
+        ps_lo, nm_lo = lim["ps_lo"], lim["nm_lo"]
+        ps_hi = lim["ps_hi"] if lim["ps_hi"] > ps_lo else max(sc["ps"] or 1.0, ps_lo + 1.0)
+        nm_hi = lim["nm_hi"] if lim["nm_hi"] > nm_lo else max(sc["nm"] or 1.0, nm_lo + 1.0)
+        nm_top, nm_step, ps_top, ps_step, _ = aligned_scale(
+            nm_hi, ps_hi, min_right=nm_lo, min_left=ps_lo,
+            fixed_right=lim["nm_hi"] > nm_lo, fixed_left=lim["ps_hi"] > ps_lo)
+        self.top.set_scales((ps_lo, ps_top, ps_step), (nm_lo, nm_top, nm_step))
         lam = (0.7, 1.3, 0.1) if self.lambda_mode else (10.0, 16.0, 1.0)
         k = int(round((lam[1] - lam[0]) / lam[2]))
         egt_step = nice_step(max(100.0, sc.get("egt", 800.0) * 1.05) / k)

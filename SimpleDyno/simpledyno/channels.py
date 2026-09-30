@@ -38,6 +38,7 @@ def run_channels(run: Dict, res: Optional[physics.RunResult], p: physics.DynoPar
     dt = np.asarray(run["dt"], float)
     n_roll = np.asarray(run["n_roll"], float)
     N = len(dt)
+    p = physics.effective(p, physics.sample_rate(dt))
     t = np.concatenate([[0.0], np.cumsum(dt[1:])]) if N else dt
     ch: "OrderedDict[str, Channel]" = OrderedDict()
     ch["Zeit"] = Channel(t, "s", "Zeit")
