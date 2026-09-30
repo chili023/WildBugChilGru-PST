@@ -80,6 +80,21 @@ class Files(unittest.TestCase):
         b = physics.evaluate(back["n_roll"], back["dt"], back["params"])
         self.assertAlmostEqual(a.p_max, b.p_max, places=6)
 
+    def test_labview_321_variant_xml(self):
+        """LabVIEW 3.2.1 speichert den Datenspeicher in <LvVariant>…</LvVariant>."""
+        src = sorted(glob.glob(os.path.join(DATA, "*.xml")))[0]
+        text = open(src, "rb").read().decode("latin-1")
+        head, rest = text.split("<Cluster>", 1)
+        body, tail = rest.rsplit("</Cluster>", 1)
+        wrapped = head + "<LvVariant>\n<Name>Value</Name>\n<Cluster>" + body + "</Cluster>\n</LvVariant>" + tail
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, "lv321.xml")
+            with open(out, "wb") as fh:
+                fh.write(wrapped.encode("latin-1"))
+            a, b = lvxml.read_run(src), lvxml.read_run(out)
+        np.testing.assert_allclose(a["n_roll"], b["n_roll"])
+        self.assertEqual(a["params"], b["params"])
+
     def test_parse_frame(self):
         f = link.parse_frame("123;60.00;50.00;725.50;656;0.00;612", 0)
         self.assertEqual((f.cycle, f.rate, f.ign_hz, f.roll_hz, f.egt1, f.egt2), (123, 60.0, 50.0, 725.5, 656, 612))

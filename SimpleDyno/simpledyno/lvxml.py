@@ -46,7 +46,12 @@ def read_fields(path: str) -> List[Tuple[str, Any]]:
     if text.startswith("<?xml"):
         text = text[text.index("?>") + 2:]
     root = ET.fromstring(text)
-    cluster = next(c for c in root if _tag(c) == "Cluster")
+    # STM-LabVIEW: <LVData><Cluster>…; LabVIEW 3.2.1: <LVData><LvVariant><Cluster>…
+    clusters = [c for c in root.iter() if _tag(c) == "Cluster"]
+    cluster = next((c for c in clusters if (c.findtext("{*}Name") or "") == "Datenspeicher"),
+                   clusters[0] if clusters else None)
+    if cluster is None:
+        raise ValueError(f"{path}: kein LabVIEW-Datenspeicher gefunden")
     return [(c.findtext("{*}Name") or "", _value(c)) for c in cluster if _tag(c) not in ("Name", "NumElts")]
 
 
